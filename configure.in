@@ -1,0 +1,351 @@
+AC_INIT(ShivaVG, 0.2.1)
+AC_CONFIG_HEADERS([config.h:config.h.in])
+AM_INIT_AUTOMAKE
+AC_CANONICAL_HOST
+
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_LIBTOOL
+
+# ==============================================
+# Check examples selection
+
+AC_ARG_WITH(
+	[example-all],
+	[  --with-example-all            Initialize build values for all examples (default=yes)],
+	[build_test_all=$withval], [build_test_all="yes"])
+
+AC_ARG_WITH(
+	[example-vgu],
+	[  --with-example-vgu            Build VGU example (default=yes)],
+	[build_test_vgu=$withval], [build_test_vgu="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-dash],
+	[  --with-example-dash           Build Dashing example (default=yes)],
+	[build_test_dash=$withval], [build_test_dash="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-linear],
+	[  --with-example-linear         Build Linear Gradient example (default=yes)],
+	[build_test_linear=$withval], [build_test_linear="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-radial],
+	[  --with-example-radial         Build Radial Gradient example (default=yes)],
+	[build_test_radial=$withval], [build_test_radial="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-interpolate],
+	[  --with-example-interpolate    Build Path Interpolation example (default=yes)],
+	[build_test_interpolate=$withval], [build_test_interpolate="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-tiger],
+	[  --with-example-tiger          Build Tiger SVG example (default=yes)],
+	[build_test_tiger=$withval], [build_test_tiger="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-image],
+	[  --with-example-image          Build Images example (default=yes)],
+	[build_test_image=$withval], [build_test_image="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-pattern],
+	[  --with-example-pattern        Build Pattern Paint example (default=yes)],
+	[build_test_pattern=$withval], [build_test_pattern="$build_test_all"])
+
+AC_ARG_WITH(
+	[example-blend],
+	[  --with-example-blend          Build Blending example (default=yes)],
+	[build_test_blend=$withval], [build_test_blend="$build_test_all"])
+
+# ==============================================
+# Integer types
+
+AC_TYPE_INT8_T
+AC_TYPE_UINT8_T
+AC_TYPE_INT16_T
+AC_TYPE_UINT16_T
+AC_TYPE_INT32_T
+AC_TYPE_UINT32_T
+AC_TYPE_INT64_T
+AC_TYPE_UINT64_T
+AC_CHECK_SIZEOF([void *])
+
+# ==============================================
+# Check for math library
+
+AC_CHECK_LIB([m],[cos])
+
+# ==============================================
+# Platform-specific directories and flags
+
+case "${host}" in
+*darwin*)
+	GL_DIR="OpenGL"
+	GLUT_DIR="GLUT"
+	GL_LIB="-framework OpenGL"
+	GLU_LIB=""
+	GLUT_LIB="-framework GLUT"
+	CONFIG_CFLAGS=""
+	CONFIG_LDFLAGS="-framework OpenGL -framework GLUT"
+	CONFIG_LDADD="" ;;
+*mingw* | *cygwin*)
+	GL_DIR="GL"
+	GLUT_DIR="GL"
+	GL_LIB="-lGL"
+	GLU_LIB="-lGLU"
+	GLUT_FLAGS="-lglut"
+	CONFIG_CFLAGS=""
+	CONFIG_LDFLAGS=""
+	CONFIG_LDADD="-lglut -lGL -lGLU" ;;
+*)
+	GL_DIR="GL"
+	GLUT_DIR="GL"
+	GL_LIB="-lGL"
+	GLU_LIB="-lGLU"
+	GLUT_LIB="-lglut"
+	CONFIG_CFLAGS=""
+	CONFIG_LDFLAGS=""
+	CONFIG_LDADD="-lglut -lGL -lGLU" ;;
+	
+esac
+
+AC_SUBST([CONFIG_CFLAGS])
+AC_SUBST([CONFIG_LDFLAGS])
+AC_SUBST([CONFIG_LDADD])
+
+# ==============================================
+# Check for OpenGL and GLUT headers
+
+AC_CHECK_HEADERS(
+	[$GL_DIR/gl.h],
+	[has_gl_h="yes"], [has_gl_h="no"])
+
+AC_CHECK_HEADERS(
+	[$GL_DIR/glu.h],
+	[has_glu_h="yes"], [has_glu_h="no"])
+
+AC_CHECK_HEADERS(
+	[$GLUT_DIR/glut.h],
+	[has_glut_h="yes"], [has_glut_h="no"])
+
+case "${host}" in
+*linux*)
+	AC_CHECK_HEADERS(
+		[$GL_DIR/glx.h],
+		[has_glx_h]="yes", [has_glx_h]="no") ;;
+esac
+
+# ===============================================
+# Check for OpenGL and GLUT libraries
+
+LDFLAGS="$LDFLAGS $GL_LIB"
+
+echo -n "checking for OpenGL library... "
+AC_LINK_IFELSE([
+	char glEnd();
+	int main(void) {glEnd(); return 0;}],
+	[has_gl="yes"] && [echo "yes"],
+	[has_gl="no"] && [echo "no"])
+
+case "${host}" in
+*linux*)
+	AC_CHECK_LIB(
+		[GL], glXGetProcAddress,
+		[has_glx="yes"], [has_glx="no"]) ;;
+esac
+
+LDFLAGS="$LDFLAGS $GLU_LIB"
+
+echo -n "checking for GLU library... "
+AC_LINK_IFELSE([
+	char gluOrtho2D();
+	int main(void) {gluOrtho2D(); return 0;}],
+	[has_glu="yes"] && [echo "yes"],
+	[has_glu="no"] && [echo "no"])
+
+LDFLAGS="$LDFLAGS $GLUT_LIB"
+
+echo -n "checking for GLUT library... "
+AC_LINK_IFELSE([
+	char glutInit();
+	int main(void) {glutInit(); return 0;}],
+	[has_glut="yes"] && [echo "yes"],
+	[has_glut="no"] && [echo "no"])
+
+LDFLAGS=""
+
+# ==============================================
+# JPEG library required for VGImage example
+
+CFLAGS="-I$prefix/include"
+LDFLAGS="-ljpeg -L/usr/local/lib -L$prefix/lib"
+
+AC_CHECK_HEADERS(
+	[jpeglib.h],
+	[has_jpeg_h="yes"], [has_jpeg_h="no"])
+
+echo -n "checking for JPEG library... "
+AC_LINK_IFELSE([
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <jpeglib.h>
+	int main(void) {jpeg_create_decompress(0); return 0;}],
+	[has_jpeg="yes"] && echo "yes",
+	[has_jpeg="no"] && echo "no")
+
+if test "x$build_test_image" = "xyes"; then
+
+	if test "x$has_jpeg_h" = "xno"; then
+		build_test_image="no (jpeg library headers missing)"
+	else
+		if test "x$has_jpeg" = "xno"; then
+			build_test_image="no (failed linking with jpeg library)"
+		fi
+	fi
+fi
+
+if test "x$build_test_pattern" = "xyes"; then
+
+	if test "x$has_jpeg_h" = "xno"; then
+		build_test_pattern="no (jpeg library headers missing)"
+	else
+		if test "x$has_jpeg" = "xno"; then
+			build_test_pattern="no (failed linking with jpeg library)"
+		fi
+	fi
+fi
+
+CFLASGS=""
+LDFLAGS=""
+
+# ==============================================
+# report failure on missing libraries
+
+NO_GL_H_MSG="
+
+	gl.h header missing! ShivaVG cannot be built without
+	OpenGL headers.
+"
+NO_GLU_H_MSG="
+
+	glu.h header missing! ShivaVG cannot be built without
+	OpenGL headers.
+"
+NO_GL_MSG="
+
+	Failed linking with GL library! ShivaVG cannot be built
+	without OpenGL library.
+"
+NO_GLU_MSG="
+
+	Failed linking with GLU library! ShivaVG cannot be built
+	without OpenGL library.
+"
+NO_GLX_H_MSG="
+
+	glx.h header missing! ShivaVG cannot be build without
+	GLX headers.
+"
+NO_GLX_MSG="
+
+	Failed linking with GLX library! ShivaVG cannot be built
+	without GLX library.
+"
+
+if test "x$has_gl_h" = "xno"; then
+	AC_MSG_FAILURE([$NO_GL_H_MSG])
+fi
+
+if test "x$has_glu_h" = "xno"; then
+	AC_MSG_FAILURE([$NO_GLU_H_MSG])
+fi
+
+if test "x$has_gl" = "xno"; then
+	AC_MSG_FAILURE([$NO_GL_MSG])
+fi
+
+if test "x$has_glu" = "xno"; then
+	AC_MSG_FAILURE([$NO_GLU_MSG])
+fi
+
+case "${host}" in
+*linux*)
+	if test "x$has_glx_h" = "xno"; then
+		AC_MSG_FAILURE([$NO_GLX_H_MSG])
+	fi
+	if test "x$has_glx" = "xno"; then
+		AC_MSG_FAILURE([$NO_GLX_MSG])
+	fi ;;
+esac
+
+# ========================================================
+# Setup automake conditionals according to configuration
+
+AM_CONDITIONAL([BUILD_EXAMPLES], [test "x$has_glut_h" = "xyes"])
+
+AM_CONDITIONAL([BUILD_VGU],         [test "x$build_test_vgu" = "xyes"])
+AM_CONDITIONAL([BUILD_DASH],        [test "x$build_test_dash" = "xyes"])
+AM_CONDITIONAL([BUILD_LINEAR],      [test "x$build_test_linear" = "xyes"])
+AM_CONDITIONAL([BUILD_RADIAL],      [test "x$build_test_radial" = "xyes"])
+AM_CONDITIONAL([BUILD_INTERPOLATE], [test "x$build_test_interpolate" = "xyes"])
+AM_CONDITIONAL([BUILD_TIGER],       [test "x$build_test_tiger" = "xyes"])
+AM_CONDITIONAL([BUILD_IMAGE],       [test "x$build_test_image" = "xyes"])
+AM_CONDITIONAL([BUILD_PATTERN],     [test "x$build_test_pattern" = "xyes"])
+AM_CONDITIONAL([BUILD_BLEND],       [test "x$build_test_blend" = "xyes"])
+
+AC_OUTPUT([
+Makefile
+src/Makefile
+examples/Makefile
+])
+
+# =============================================
+
+#echo "GL headers present      $has_gl_h"
+#echo "GLU headers present     $has_glu_h"
+#echo "GLX headers present     $has_glx_h"
+#echo "GLUT headers present    $has_glut_h"
+#echo "JPEG headers present    $has_jpeg_h"
+#echo ""
+#echo "GL library present      $has_gl"
+#echo "GLU library present     $has_glu"
+#echo "GLX library present     $has_glx"
+#echo "GLUT library present    $has_glut"
+#echo "JPEG library present    $has_jpeg"
+
+EXAMPLES_LIST="
+ShivaVG will be compiled with the following example programs
+(run './configure --help' to see how to change selection) :
+
+  VGU                       ${build_test_vgu}
+  Dashing                   ${build_test_dash}
+  Linear Gradient           ${build_test_linear}
+  Radial Gradient           ${build_test_radial}
+  Path Interpolation        ${build_test_interpolate}
+  Tiger SVG                 ${build_test_tiger}
+  Images                    ${build_test_image}
+  Pattern paint             ${build_test_pattern}
+  Blending                  ${build_test_blend}
+"
+
+if test "x$has_glut_h" = "xno"; then
+	echo "ShivaVG example programs will not be built because"
+	echo "the GLUT headers are missing!"
+
+else
+
+	if test "x$has_glut" = "xno"; then
+		echo "ShivaVG example programs will not be built because"
+		echo "linking to GLUT library failed!"
+	
+	else
+
+	  echo "$EXAMPLES_LIST"
+
+	fi
+fi
+
+echo ""
